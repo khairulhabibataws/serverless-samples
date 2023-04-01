@@ -78,7 +78,7 @@ Resources:
       ServiceRole: !GetAtt IntegrationTestCodeBuildServiceRole.Arn
       Source:
         Type: CODEPIPELINE
-        BuildSpec: ./java-appsync-sam/tests/testspec.yml
+        BuildSpec: ./java-appsync-sam/testspec.yml
       Tags:
         - Key: "Stack"
           Value: !Ref AWS::StackName
