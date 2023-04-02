@@ -280,6 +280,8 @@ Resources:
               Service:
                 - codebuild.amazonaws.com
       Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSAppSyncSchemaAuthor"
       Policies:
         - PolicyName: CodeBuildLogs
           PolicyDocument:
