@@ -1,6 +1,3 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT-0
-
 version: 0.2
 
 phases:
@@ -12,7 +9,7 @@ phases:
   build:
     commands:
       - echo Build started on `date`
-      - mvn test -Dtest=IntegrationTest
+      - mvn test 
   post_build:
     commands:
       - echo Build completed on `date`
