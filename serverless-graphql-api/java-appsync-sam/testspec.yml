@@ -16,7 +16,6 @@ phases:
   post_build:
     commands:
       - echo Build completed on `date`
-      - sam package --template template.yaml --s3-bucket $BUILD_OUTPUT_BUCKET --output-template-file application.yaml
 artifacts:
   files:
     - ./java-appsync-sam/target/java-appsync-sam-1.0-SNAPSHOT.jar
