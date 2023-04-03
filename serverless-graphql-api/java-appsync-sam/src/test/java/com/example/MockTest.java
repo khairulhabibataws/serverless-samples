@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.appsync.AppSyncClient;
 import software.amazon.awssdk.services.appsync.model.EvaluateMappingTemplateRequest;
 import software.amazon.awssdk.services.appsync.model.EvaluateMappingTemplateResponse;
 
-public class HandlerTest {
+public class MockTest {
 
     private static String locationContext = "{\"arguments\":\n    {\n        \"locationid\": \"1234567890\",\n        \"name\": \"Location Name\",\n        \"description\": \"Location Description\",\n        \"imageUrl\": \"https://www.example.com/image.jpg\"\n    },\n\"result\": {\n    \"locationid\": \"1234567890\",\n    \"imageUrl\": \"https://www.example.com/image.jpg\",\n    \"name\": \"Location Name\",\n    \"description\": \"Location Description\",\n    \"timestamp\": \"2023-01-01T00:00:00.000Z\"\n}}";
     private static String resourceContext = "{\n        \"arguments\":\n            {\n                \"resourceid\": \"1234567890\",\n                \"locationid\": \"abcdefghij\",\n                \"name\": \"Resource Name\",\n                \"description\": \"Resource Description\",\n                \"type\": \"Resource Type\"\n            },\n        \"result\":\n            {\n                \"resourceid\": \"1234567890\",\n                \"locationid\": \"abcdefghij\",\n                \"name\": \"Resource Name\",\n                \"description\": \"Resource Description\",\n                \"type\": \"Resource Type\",\n                \"timestamp\": \"2023-01-01T00:00:00.000Z\"\n            }\n    }";
