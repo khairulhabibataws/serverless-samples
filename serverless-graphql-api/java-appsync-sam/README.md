@@ -62,10 +62,10 @@ aws cognito-idp initiate-auth --auth-flow USER_PASSWORD_AUTH --client-id <cognit
 
 This project is set up like a standard Java project with maven.  
 
-You can directly call maven build to build the project
+You can directly call maven package to build and test the project
 
 ```
-$ mvn clean test
+$ mvn clean package
 ```
 
 To build and deploy your application for the first time, run the following in your shell:
