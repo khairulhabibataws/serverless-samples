@@ -305,7 +305,7 @@ public class IntegrationTest {
     @Test
     public void testDenyPutLocationByRegularUser() throws IOException{
         ObjectMapper mapper = new ObjectMapper();
-        String schemaRequest = "{\"query\":\"mutation addLocation {createLocation(name: \\\"HQ\\\", description: \\\"Headquarters in New York\\\", imageUrl: \\\"https://api.example.com/venetian.jpg\\\") {name locationid imageUrl description timestamp}}\",\"variables\":{}}";
+        String schemaRequest = "{\"query\":\"mutation addLocation {createLocation(name: \\\""+newLocation.get("name").asText()+"\\\", description: \\\""+newLocation.get("description").asText()+"\\\", imageUrl: \\\""+newLocation.get("imageUrl").asText()+"\\\") {name locationid imageUrl description timestamp}}\",\"variables\":{}}";
         StringEntity entity = new StringEntity(schemaRequest);
         final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
         httpPost.setEntity(entity);
