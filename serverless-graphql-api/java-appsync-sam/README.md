@@ -92,7 +92,7 @@ Both unit tests and integration tests are defined in the `tests` folder in this 
 ```bash
 mvn test
 ```
-To running **integration test**, execute mvn with extra argument like below
+To running only **integration test**, execute mvn with extra argument like below
 ```bash
 mvn test -Dtest=IntegrationTest
 ```
