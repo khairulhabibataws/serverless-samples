@@ -19,7 +19,10 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,6 +50,7 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetRandomPasswordRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetRandomPasswordResponse;
 
+@TestMethodOrder(OrderAnnotation.class)
 public class IntegrationTest {
 
     private static Map<String,String> globalConfigMap = new HashMap<>();
@@ -57,8 +61,15 @@ public class IntegrationTest {
     private static SecretsManagerClient smClient;
 
     static String jsonNewLocation = "{\"imageUrl\": \"https://api.example.com/venetian.jpg\",\n    \"description\": \"Headquarters in New York\",\n    \"name\": \"HQ\"}";
+    static String jsonNewBooking = "{\"starttimeepochtime\": 1617278400}";
+    static String jsonNewResource = "{\"description\": \"Fishbowl, Level 2\",\n    \"name\": \"FL-2\",\n    \"type\": \"room\"}";
 
     private static JsonNode newLocation;
+    private static JsonNode newBooking;
+    private static JsonNode newResource;
+    private static Map<String,String> mapNewBooking;
+    private static String locationid = "";
+    private static String resourceid = "";
 
     @BeforeAll
     private static void init(){
@@ -76,6 +87,9 @@ public class IntegrationTest {
             createCognitoAccounts();
             clearDynamoDBTables();
             newLocation = mapper.readTree(jsonNewLocation);
+            newBooking = mapper.readTree(jsonNewBooking);
+            newResource = mapper.readTree(jsonNewResource);
+            mapNewBooking = (Map<String,String>)mapper.convertValue(newBooking, Map.class);
         } catch (Exception e) {
             System.err.println(e);
         }
@@ -245,6 +259,7 @@ public class IntegrationTest {
     }
 
     @Test
+    @Order(1)
     public void testAccessToApiWithoutAuthentication() throws IOException{
         String schemaRequest = "{\"query\":\"{__schema {queryType {fields {name}}}}\",\"variables\":{}}";
         StringEntity entity = new StringEntity(schemaRequest);
@@ -259,6 +274,7 @@ public class IntegrationTest {
     }
 
     @Test
+    @Order(2)
     public void testAccessToApiWithAuthentication() throws IOException{
         ObjectMapper mapper = new ObjectMapper();
         String schemaRequest = "{\"query\":\"{__schema {queryType {fields {name}}}}\",\"variables\":{}}";
@@ -273,7 +289,6 @@ public class IntegrationTest {
                 assertEquals(HttpStatus.SC_OK, statusCode);
                 String stringResponse = EntityUtils.toString(response.getEntity());
                 JsonNode resultNode = mapper.readTree(stringResponse);
-                System.out.println(stringResponse);
                 assertNotNull(resultNode.get("data")
                     .get("__schema")
                     .get("queryType")
@@ -282,6 +297,7 @@ public class IntegrationTest {
     }
 
     @Test
+    @Order(3)
     public void testGetListOfLocationsByRegularUser() throws IOException{
         ObjectMapper mapper = new ObjectMapper();
         String schemaRequest = "{\"query\":\"query allLocations {getAllLocations {description name imageUrl resources {description name type bookings {starttimeepochtime userid}}}}\",\"variables\":{}}";
@@ -296,13 +312,13 @@ public class IntegrationTest {
                 assertEquals(HttpStatus.SC_OK, statusCode);
                 String stringResponse = EntityUtils.toString(response.getEntity());
                 JsonNode resultNode = mapper.readTree(stringResponse);
-                System.out.println(stringResponse);
                 assertNotNull(resultNode.get("data")
                     .get("getAllLocations"));
             }
     }
 
     @Test
+    @Order(4)
     public void testDenyPutLocationByRegularUser() throws IOException{
         ObjectMapper mapper = new ObjectMapper();
         String schemaRequest = "{\"query\":\"mutation addLocation {createLocation(name: \\\""+newLocation.get("name").asText()+"\\\", description: \\\""+newLocation.get("description").asText()+"\\\", imageUrl: \\\""+newLocation.get("imageUrl").asText()+"\\\") {name locationid imageUrl description timestamp}}\",\"variables\":{}}";
@@ -317,7 +333,6 @@ public class IntegrationTest {
                 assertEquals(HttpStatus.SC_OK, statusCode);
                 String stringResponse = EntityUtils.toString(response.getEntity());
                 JsonNode resultNode = mapper.readTree(stringResponse);
-                System.out.println(stringResponse);
                 assertEquals(NullNode.getInstance(),resultNode.get("data")
                     .get("createLocation"));
                 assertEquals("Unauthorized", resultNode.get("errors")
@@ -325,5 +340,116 @@ public class IntegrationTest {
                     .get("errorType").asText());
             }
     }
+
+    @Test
+    @Order(5)
+    public void testAllowPutLocationByAdministrativeUser() throws IOException{
+        ObjectMapper mapper = new ObjectMapper();
+        String schemaRequest = "{\"query\":\"mutation addLocation {createLocation(name: \\\""+newLocation.get("name").asText()+"\\\", description: \\\""+newLocation.get("description").asText()+"\\\", imageUrl: \\\""+newLocation.get("imageUrl").asText()+"\\\") {name locationid imageUrl description timestamp}}\",\"variables\":{}}";
+        StringEntity entity = new StringEntity(schemaRequest);
+        final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
+        httpPost.setEntity(entity);
+        httpPost.setHeader("Content-Type", "application/json");
+        httpPost.setHeader("Authorization",globalConfigMap.get("adminUserAccessToken"));
+        try(CloseableHttpClient client = HttpClients.createDefault();
+            CloseableHttpResponse response = client.execute(httpPost)){
+                final int statusCode = response.getStatusLine().getStatusCode();
+                assertEquals(HttpStatus.SC_OK, statusCode);
+                String stringResponse = EntityUtils.toString(response.getEntity());
+                JsonNode resultNode = mapper.readTree(stringResponse);
+                assertEquals(newLocation.get("name"),resultNode.get("data")
+                    .get("createLocation").get("name"));
+                assertEquals(newLocation.get("imageUrl"),resultNode.get("data")
+                    .get("createLocation").get("imageUrl"));
+                assertEquals(newLocation.get("description"),resultNode.get("data")
+                    .get("createLocation").get("description"));
+
+                locationid = resultNode.get("data").get("createLocation").get("locationid").asText();
+            }
+    }
+
+    @Test
+    @Order(6)
+    public void testAllowPutResourceByAdministrativeUser() throws IOException{
+        ObjectMapper mapper = new ObjectMapper();
+        String schemaRequest = "{\"query\":\"mutation addResource {createResource(locationid: \\\""+locationid+"\\\",name: \\\""+newResource.get("name").asText()+"\\\", description: \\\""+newResource.get("description").asText()+"\\\", type: \\\""+newResource.get("type").asText()+"\\\") {resourceid locationid name description type timestamp}}\",\"variables\":{}}";
+        StringEntity entity = new StringEntity(schemaRequest);
+        final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
+        httpPost.setEntity(entity);
+        httpPost.setHeader("Content-Type", "application/json");
+        httpPost.setHeader("Authorization",globalConfigMap.get("adminUserAccessToken"));
+        try(CloseableHttpClient client = HttpClients.createDefault();
+            CloseableHttpResponse response = client.execute(httpPost)){
+                final int statusCode = response.getStatusLine().getStatusCode();
+                assertEquals(HttpStatus.SC_OK, statusCode);
+                String stringResponse = EntityUtils.toString(response.getEntity());
+                JsonNode resultNode = mapper.readTree(stringResponse);
+                assertEquals(newResource.get("name"),resultNode.get("data")
+                    .get("createResource").get("name"));
+                assertEquals(locationid,resultNode.get("data")
+                    .get("createResource").get("locationid").asText());
+                
+                resourceid = resultNode.get("data").get("createResource").get("resourceid").asText();
+                mapNewBooking.put("resourceid", resourceid);
+                System.out.println(resourceid);
+            }
+        System.out.println(resourceid);
+    }
+
+    @Test
+    @Order(7)
+    public void testAllowPutBookingForYourself() throws IOException{
+        ObjectMapper mapper = new ObjectMapper();
+        String schemaRequest = "{\"query\":\"mutation addBooking {createBooking(resourceid: \\\""+resourceid+"\\\", starttimeepochtime: "+newBooking.get("starttimeepochtime").asText()+") {bookingid resourceid starttimeepochtime userid timestamp}}\",\"variables\":{}}";
+        System.out.println(schemaRequest);
+        StringEntity entity = new StringEntity(schemaRequest);
+        final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
+        httpPost.setEntity(entity);
+        httpPost.setHeader("Content-Type", "application/json");
+        httpPost.setHeader("Authorization",globalConfigMap.get("regularUserAccessToken"));
+        try(CloseableHttpClient client = HttpClients.createDefault();
+            CloseableHttpResponse response = client.execute(httpPost)){
+                final int statusCode = response.getStatusLine().getStatusCode();
+                assertEquals(HttpStatus.SC_OK, statusCode);
+                String stringResponse = EntityUtils.toString(response.getEntity());
+                JsonNode resultNode = mapper.readTree(stringResponse);
+                System.out.println(stringResponse);
+                assertEquals(resourceid,resultNode.get("data")
+                    .get("createBooking")
+                    .get("resourceid").asText());
+                assertEquals(globalConfigMap.get("regularUserSub"),resultNode.get("data")
+                    .get("createBooking")
+                    .get("userid").asText());
+            }
+    }
+
+    @Test
+    @Order(8)
+    public void testGetListOfBookingsForResourceAfterAddingBookingForUser() throws IOException{
+        ObjectMapper mapper = new ObjectMapper();
+        String schemaRequest = "{\"query\":\"query getResource {createBooking(resourceid: \\\""+resourceid+"\\\", starttimeepochtime: "+newBooking.get("starttimeepochtime").asText()+") {bookingid resourceid starttimeepochtime userid timestamp}}\",\"variables\":{}}";
+        System.out.println(schemaRequest);
+        StringEntity entity = new StringEntity(schemaRequest);
+        final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
+        httpPost.setEntity(entity);
+        httpPost.setHeader("Content-Type", "application/json");
+        httpPost.setHeader("Authorization",globalConfigMap.get("regularUserAccessToken"));
+        try(CloseableHttpClient client = HttpClients.createDefault();
+            CloseableHttpResponse response = client.execute(httpPost)){
+                final int statusCode = response.getStatusLine().getStatusCode();
+                assertEquals(HttpStatus.SC_OK, statusCode);
+                String stringResponse = EntityUtils.toString(response.getEntity());
+                JsonNode resultNode = mapper.readTree(stringResponse);
+                System.out.println(stringResponse);
+                assertEquals(resourceid,resultNode.get("data")
+                    .get("createBooking")
+                    .get("resourceid").asText());
+                assertEquals(globalConfigMap.get("regularUserSub"),resultNode.get("data")
+                    .get("createBooking")
+                    .get("userid").asText());
+            }
+    }
+
+
     
 }
