@@ -70,6 +70,7 @@ public class IntegrationTest {
     private static Map<String,String> mapNewBooking;
     private static String locationid = "";
     private static String resourceid = "";
+    private static String bookingid = "";
 
     @BeforeAll
     private static void init(){
@@ -420,6 +421,10 @@ public class IntegrationTest {
                 assertEquals(globalConfigMap.get("regularUserSub"),resultNode.get("data")
                     .get("createBooking")
                     .get("userid").asText());
+
+                bookingid = resultNode.get("data")
+                .get("createBooking")
+                .get("bookingid").asText();
             }
     }
 
@@ -427,8 +432,7 @@ public class IntegrationTest {
     @Order(8)
     public void testGetListOfBookingsForResourceAfterAddingBookingForUser() throws IOException{
         ObjectMapper mapper = new ObjectMapper();
-        String schemaRequest = "{\"query\":\"query getResource {createBooking(resourceid: \\\""+resourceid+"\\\", starttimeepochtime: "+newBooking.get("starttimeepochtime").asText()+") {bookingid resourceid starttimeepochtime userid timestamp}}\",\"variables\":{}}";
-        System.out.println(schemaRequest);
+        String schemaRequest = "{\"query\":\"query getResource {getResource(resourceid: \\\""+resourceid+"\\\") {bookings {bookingid resourceid userid starttimeepochtime timestamp}}}\",\"variables\":{}}";
         StringEntity entity = new StringEntity(schemaRequest);
         final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
         httpPost.setEntity(entity);
@@ -441,11 +445,43 @@ public class IntegrationTest {
                 String stringResponse = EntityUtils.toString(response.getEntity());
                 JsonNode resultNode = mapper.readTree(stringResponse);
                 System.out.println(stringResponse);
+                assertEquals(bookingid,resultNode.get("data")
+                    .get("getResource")
+                    .get("bookings").get(0).get("bookingid").asText());
                 assertEquals(resourceid,resultNode.get("data")
-                    .get("createBooking")
+                    .get("getResource")
+                    .get("bookings").get(0).get("resourceid").asText());
+                assertEquals(globalConfigMap.get("regularUserSub"),resultNode.get("data")
+                .get("getResource")
+                .get("bookings").get(0).get("userid").asText());
+            }
+    }
+
+    @Test
+    @Order(9)
+    public void testGetListOfBookingsForYourselfAfterAddingBookingForUser() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        String schemaRequest = "{\"query\":\"query myBookings {getMyBookings {bookingid resourceid userid starttimeepochtime}}\",\"variables\":{}}";
+        StringEntity entity = new StringEntity(schemaRequest);
+        final HttpPost httpPost = new HttpPost(globalConfigMap.get("APIEndpoint"));
+        httpPost.setEntity(entity);
+        httpPost.setHeader("Content-Type", "application/json");
+        httpPost.setHeader("Authorization",globalConfigMap.get("regularUserAccessToken"));
+        try(CloseableHttpClient client = HttpClients.createDefault();
+            CloseableHttpResponse response = client.execute(httpPost)){
+                final int statusCode = response.getStatusLine().getStatusCode();
+                assertEquals(HttpStatus.SC_OK, statusCode);
+                String stringResponse = EntityUtils.toString(response.getEntity());
+                JsonNode resultNode = mapper.readTree(stringResponse);
+                System.out.println(stringResponse);
+                assertEquals(bookingid,resultNode.get("data")
+                    .get("getMyBookings").get(0)
+                    .get("bookingid").asText());
+                assertEquals(resourceid,resultNode.get("data")
+                    .get("getMyBookings").get(0)
                     .get("resourceid").asText());
                 assertEquals(globalConfigMap.get("regularUserSub"),resultNode.get("data")
-                    .get("createBooking")
+                    .get("getMyBookings").get(0)
                     .get("userid").asText());
             }
     }

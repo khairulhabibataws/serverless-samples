@@ -397,6 +397,11 @@ public class MockTest {
         }
     }
 
+    @Test
+    public void testGetBookingsForResourceResolver() throws IOException{
+
+    }
+
     private String getTemplateToString(String location) throws IOException{
 
         try {
